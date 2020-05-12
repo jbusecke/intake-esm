@@ -8,7 +8,7 @@ import dask
 import intake
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 from .utils import _fetch_and_parse_json, _fetch_catalog, logger
 
@@ -65,16 +65,16 @@ class esm_datastore(intake.catalog.Catalog):
     4  AerChemMIP            BCC  BCC-ESM1        ssp370  ...      tasmin         gn  gs://cmip6/AerChemMIP/BCC/BCC-ESM1/ssp370/r1i1...            NaN
     """
 
-    name = 'esm_datastore'
-    container = 'xarray'
+    name = "esm_datastore"
+    container = "xarray"
 
     def __init__(
         self,
         esmcol_obj,
         esmcol_data=None,
         progressbar=True,
-        sep='.',
-        log_level='CRITICAL',
+        sep=".",
+        log_level="CRITICAL",
         **kwargs,
     ):
 
@@ -83,7 +83,7 @@ class esm_datastore(intake.catalog.Catalog):
 
         numeric_log_level = getattr(logging, log_level.upper(), None)
         if not isinstance(numeric_log_level, int):
-            raise ValueError(f'Invalid log level: {log_level}')
+            raise ValueError(f"Invalid log level: {log_level}")
         logger.setLevel(numeric_log_level)
 
         if isinstance(esmcol_obj, str):
@@ -97,7 +97,7 @@ class esm_datastore(intake.catalog.Catalog):
             self.esmcol_data = esmcol_data
             self.esmcol_path = None
         else:
-            raise ValueError(f'{self.name} constructor not properly called!')
+            raise ValueError(f"{self.name} constructor not properly called!")
 
         self.progressbar = progressbar
         self._kwargs = kwargs
@@ -107,7 +107,7 @@ class esm_datastore(intake.catalog.Catalog):
         self.sep = sep
         self.aggregation_info = self._get_aggregation_info()
         self._entries = {}
-        self._grouped = self.df.groupby(self.aggregation_info['groupby_attrs'])
+        self._grouped = self.df.groupby(self.aggregation_info["groupby_attrs"])
         self._keys = list(self._grouped.groups.keys())
         super(esm_datastore, self).__init__(**kwargs)
 
@@ -119,24 +119,30 @@ class esm_datastore(intake.catalog.Catalog):
         aggregations = []
         aggregation_dict = {}
         agg_columns = []
-        path_column_name = self.esmcol_data['assets']['column_name']
+        path_column_name = self.esmcol_data["assets"]["column_name"]
 
-        if 'format' in self.esmcol_data['assets']:
-            data_format = self.esmcol_data['assets']['format']
+        if "format" in self.esmcol_data["assets"]:
+            data_format = self.esmcol_data["assets"]["format"]
         else:
-            format_column_name = self.esmcol_data['assets']['format_column_name']
+            format_column_name = self.esmcol_data["assets"]["format_column_name"]
 
-        if 'aggregation_control' in self.esmcol_data:
+        if "aggregation_control" in self.esmcol_data:
             aggregation_dict = {}
-            variable_column_name = self.esmcol_data['aggregation_control']['variable_column_name']
-            groupby_attrs = self.esmcol_data['aggregation_control'].get('groupby_attrs', [])
-            aggregations = self.esmcol_data['aggregation_control'].get('aggregations', [])
+            variable_column_name = self.esmcol_data["aggregation_control"][
+                "variable_column_name"
+            ]
+            groupby_attrs = self.esmcol_data["aggregation_control"].get(
+                "groupby_attrs", []
+            )
+            aggregations = self.esmcol_data["aggregation_control"].get(
+                "aggregations", []
+            )
             # Sort aggregations to make sure join_existing is always done before join_new
-            aggregations = sorted(aggregations, key=lambda i: i['type'], reverse=True)
+            aggregations = sorted(aggregations, key=lambda i: i["type"], reverse=True)
             for agg in aggregations:
-                key = agg['attribute_name']
+                key = agg["attribute_name"]
                 rest = agg.copy()
-                del rest['attribute_name']
+                del rest["attribute_name"]
                 aggregation_dict[key] = rest
             agg_columns = list(aggregation_dict.keys())
 
@@ -149,7 +155,7 @@ class esm_datastore(intake.catalog.Catalog):
                 return False
             elif self.df[column].isnull().any():
                 raise ValueError(
-                    f'The data in the {column} column should either be all NaN or there should be no NaNs'
+                    f"The data in the {column} column should either be all NaN or there should be no NaNs"
                 )
             else:
                 return True
@@ -157,14 +163,14 @@ class esm_datastore(intake.catalog.Catalog):
         groupby_attrs = list(filter(_allnan_or_nonan, groupby_attrs))
 
         info = {
-            'groupby_attrs': groupby_attrs,
-            'variable_column_name': variable_column_name,
-            'aggregations': aggregations,
-            'agg_columns': agg_columns,
-            'aggregation_dict': aggregation_dict,
-            'path_column_name': path_column_name,
-            'data_format': data_format,
-            'format_column_name': format_column_name,
+            "groupby_attrs": groupby_attrs,
+            "variable_column_name": variable_column_name,
+            "aggregations": aggregations,
+            "agg_columns": agg_columns,
+            "aggregation_dict": aggregation_dict,
+            "path_column_name": path_column_name,
+            "data_format": data_format,
+            "format_column_name": format_column_name,
         }
         return info
 
@@ -190,7 +196,7 @@ class esm_datastore(intake.catalog.Catalog):
         str
           string template used to create catalog entry keys
         """
-        return self.sep.join(self.aggregation_info['groupby_attrs'])
+        return self.sep.join(self.aggregation_info["groupby_attrs"])
 
     def __len__(self):
         return len(self.keys())
@@ -261,14 +267,20 @@ class esm_datastore(intake.catalog.Catalog):
         Return an html representation for the catalog object.
         Mainly for IPython notebook
         """
-        uniques = pd.DataFrame(self.nunique(), columns=['unique'])
+        uniques = pd.DataFrame(self.nunique(), columns=["unique"])
         text = uniques._repr_html_()
         output = f'<p><strong>{self.esmcol_data["id"]} catalog with {len(self)} dataset(s) from {len(self.df)} asset(s)</strong>:</p> {text}'
         return output
 
     @classmethod
     def from_df(
-        cls, df, esmcol_data=None, progressbar=True, sep='.', log_level='CRITICAL', **kwargs
+        cls,
+        df,
+        esmcol_data=None,
+        progressbar=True,
+        sep=".",
+        log_level="CRITICAL",
+        **kwargs,
     ):
         """
         Create catalog from the given dataframe
@@ -349,7 +361,7 @@ class esm_datastore(intake.catalog.Catalog):
         )
         return ret
 
-    def serialize(self, name, directory=None, catalog_type='dict'):
+    def serialize(self, name, directory=None, catalog_type="dict"):
         """Serialize collection/catalog to corresponding json and csv files.
 
         Parameters
@@ -379,14 +391,14 @@ class esm_datastore(intake.catalog.Catalog):
 
         def _clear_old_catalog(catalog_data):
             """ Remove any old references to the catalog."""
-            for key in {'catalog_dict', 'catalog_file'}:
+            for key in {"catalog_dict", "catalog_file"}:
                 _ = catalog_data.pop(key, None)
             return catalog_data
 
         from pathlib import Path
 
-        csv_file_name = Path(f'{name}.csv.gz')
-        json_file_name = Path(f'{name}.json')
+        csv_file_name = Path(f"{name}.csv.gz")
+        json_file_name = Path(f"{name}.json")
         if directory:
             directory = Path(directory)
             directory.mkdir(parents=True, exist_ok=True)
@@ -395,19 +407,23 @@ class esm_datastore(intake.catalog.Catalog):
 
         collection_data = self.esmcol_data.copy()
         collection_data = _clear_old_catalog(collection_data)
-        collection_data['id'] = name
+        collection_data["id"] = name
 
         catalog_length = len(self.df)
-        if catalog_type == 'file':
-            collection_data['catalog_file'] = csv_file_name.as_posix()
-            print(f'Writing csv catalog with {catalog_length} entries to: {csv_file_name}')
-            self.df.to_csv(csv_file_name, compression='gzip', index=False)
+        if catalog_type == "file":
+            collection_data["catalog_file"] = csv_file_name.as_posix()
+            print(
+                f"Writing csv catalog with {catalog_length} entries to: {csv_file_name}"
+            )
+            self.df.to_csv(csv_file_name, compression="gzip", index=False)
         else:
-            print(f'Writing catalog with {catalog_length} entries into: {json_file_name}')
-            collection_data['catalog_dict'] = self.df.to_dict(orient='records')
+            print(
+                f"Writing catalog with {catalog_length} entries into: {json_file_name}"
+            )
+            collection_data["catalog_dict"] = self.df.to_dict(orient="records")
 
-        print(f'Writing ESM collection json file to: {json_file_name}')
-        with open(json_file_name, 'w') as outfile:
+        print(f"Writing ESM collection json file to: {json_file_name}")
+        with open(json_file_name, "w") as outfile:
             json.dump(collection_data, outfile)
 
     def nunique(self):
@@ -435,7 +451,7 @@ class esm_datastore(intake.catalog.Catalog):
         uniques = self.unique(self.df.columns.tolist())
         nuniques = {}
         for key, val in uniques.items():
-            nuniques[key] = val['count']
+            nuniques[key] = val["count"]
         return pd.Series(nuniques)
 
     def unique(self, columns=None):
@@ -495,7 +511,7 @@ class esm_datastore(intake.catalog.Catalog):
     def to_dataset_dict(
         self,
         zarr_kwargs={},
-        cdf_kwargs={'chunks': {}},
+        cdf_kwargs={"chunks": {}},
         preprocess=None,
         storage_options={},
         progressbar=None,
@@ -557,7 +573,7 @@ class esm_datastore(intake.catalog.Catalog):
 
         # Return fast
         if not self.items():
-            warn('There are no datasets to load! Returning an empty dictionary.')
+            warn("There are no datasets to load! Returning an empty dictionary.")
             return {}
 
         source_kwargs = OrderedDict(
@@ -571,7 +587,7 @@ class esm_datastore(intake.catalog.Catalog):
             self.progressbar = progressbar
 
         if preprocess is not None and not callable(preprocess):
-            raise ValueError('preprocess argument must be callable')
+            raise ValueError("preprocess argument must be callable")
 
         # Avoid re-loading data if nothing has changed since the last call
         if self._datasets and (token == self._to_dataset_args_token):
@@ -593,17 +609,25 @@ class esm_datastore(intake.catalog.Catalog):
                 # Need to use ascii characters on Windows because there isn't
                 # always full unicode support
                 # (see https://github.com/tqdm/tqdm/issues/454)
-                use_ascii = bool(sys.platform == 'win32')
+                use_ascii = bool(sys.platform == "win32")
                 progress = tqdm(
-                    total=total, ncols=79, ascii=use_ascii, leave=True, desc='Dataset(s)'
+                    total=total,
+                    ncols=79,
+                    ascii=use_ascii,
+                    leave=True,
+                    desc="Dataset(s)",
                 )
 
-            with concurrent.futures.ThreadPoolExecutor(max_workers=len(sources)) as executor:
-                future_tasks = [executor.submit(_load_source, source) for source in sources]
+            with concurrent.futures.ThreadPoolExecutor(
+                max_workers=len(sources)
+            ) as executor:
+                future_tasks = [
+                    executor.submit(_load_source, source) for source in sources
+                ]
 
                 for i, task in enumerate(concurrent.futures.as_completed(future_tasks)):
                     ds = task.result()
-                    self._datasets[ds.attrs['intake_esm_dataset_key']] = ds
+                    self._datasets[ds.attrs["intake_esm_dataset_key"]] = ds
                     if self.progressbar:
                         progress.update(1)
 
@@ -622,12 +646,12 @@ def _unique(df, columns=None):
     for col in columns:
         values = df[col].dropna().values
         uniques = np.unique(list(_flatten_list(values))).tolist()
-        info[col] = {'count': len(uniques), 'values': uniques}
+        info[col] = {"count": len(uniques), "values": uniques}
     return info
 
 
 def _get_subset(df, require_all_on=None, **query):
-    message = 'Query returned zero results.'
+    message = "Query returned zero results."
     if not query:
         warn(message)
         return pd.DataFrame(columns=df.columns)
@@ -703,13 +727,13 @@ def _flatten_list(data):
 def _make_entry(key, df, aggregation_info):
     args = dict(
         df=df,
-        aggregation_dict=aggregation_info['aggregation_dict'],
-        path_column=aggregation_info['path_column_name'],
-        variable_column=aggregation_info['variable_column_name'],
-        data_format=aggregation_info['data_format'],
-        format_column=aggregation_info['format_column_name'],
+        aggregation_dict=aggregation_info["aggregation_dict"],
+        path_column=aggregation_info["path_column_name"],
+        variable_column=aggregation_info["variable_column_name"],
+        data_format=aggregation_info["data_format"],
+        format_column=aggregation_info["format_column_name"],
     )
     entry = intake.catalog.local.LocalCatalogEntry(
-        name=key, description='', driver='esm_group', args=args, metadata={}
+        name=key, description="", driver="esm_group", args=args, metadata={}
     )
     return entry
